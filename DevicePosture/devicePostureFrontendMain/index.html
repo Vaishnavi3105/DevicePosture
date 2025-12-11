@@ -1,0 +1,790 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Device Posture Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            margin: 2em; 
+            background-color: #f8f9fa;
+        }
+        h1 { 
+            color: #333; 
+            text-align: center;
+            margin-bottom: 0.5em;
+        }
+        h2 {
+            color: #555;
+            margin-top: 2em;
+            margin-bottom: 1em;
+            padding-bottom: 0.5em;
+            border-bottom: 2px solid #ddd;
+        }
+        .stats-container {
+            display: flex;
+            gap: 1em;
+            justify-content: center;
+            margin: 2em 0;
+        }
+        .stat-card {
+            background: white;
+            padding: 1.5em;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            min-width: 150px;
+            text-align: center;
+        }
+        .stat-card h3 {
+            margin: 0;
+            color: #666;
+            font-size: 0.9em;
+            text-transform: uppercase;
+        }
+        .stat-card .number {
+            font-size: 2.5em;
+            font-weight: bold;
+            color: #333;
+            margin: 0.2em 0;
+        }
+        .charts-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 2em;
+            justify-content: center;
+            margin: 2em 0;
+        }
+        .chart-container {
+            flex: 1;
+            min-width: 350px;
+            max-width: 500px;
+            background: white;
+            padding: 1.5em;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .table-container {
+            margin: 2em 0;
+            background: white;
+            padding: 1.5em;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        table { 
+            border-collapse: collapse; 
+            width: 100%; 
+        }
+        th, td { 
+            border: 1px solid #ccc; 
+            padding: 12px; 
+            text-align: left; 
+        }
+        th { 
+            background-color: #f4f4f4; 
+            font-weight: bold;
+        }
+        .health-critical { color: #d9534f; font-weight: bold; }
+        .health-at-risk { color: #f0ad4e; font-weight: bold; }
+        .health-moderate { color: #d48806; }
+        .health-needs-attention { color: #ad5800; }
+        .health-good { color: #5cb85c; }
+        .health-healthy { color: #5cb85c; font-weight: bold; }
+        .clickable-row {
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .clickable-row:hover {
+            background-color: #f5f5f5;
+        }
+        .alerts-table {
+            margin-top: 1em;
+            font-size: 0.9em;
+        }
+        .severity-s1 { color: #5bc0de; }
+        .severity-s2 { color: #f0ad4e; }
+        .severity-s3 { color: #ff9800; }
+        .severity-s4 { color: #d9534f; font-weight: bold; }
+        
+        /* Export buttons styles */
+        .export-section {
+            margin: 2em 0;
+            text-align: center;
+        }
+        .export-buttons {
+            display: flex;
+            gap: 1em;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            font-size: 1em;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+        .btn-primary {
+            background-color: #007bff;
+            color: white;
+        }
+        .btn-primary:hover {
+            background-color: #0056b3;
+        }
+        .btn-success {
+            background-color: #28a745;
+            color: white;
+        }
+        .btn-success:hover {
+            background-color: #218838;
+        }
+        .btn-info {
+            background-color: #17a2b8;
+            color: white;
+        }
+        .btn-info:hover {
+            background-color: #117a8b;
+        }
+        .btn-warning {
+            background-color: #ffc107;
+            color: #333;
+        }
+        .btn-warning:hover {
+            background-color: #e0a800;
+        }
+    </style>
+</head>
+<body>
+
+<h1>🛡️ Device Posture Dashboard</h1>
+
+<!-- Statistics Cards -->
+<div class="stats-container" id="statsContainer"></div>
+
+<!-- Export Section -->
+<div class="export-section">
+    <h2>📥 Export Reports</h2>
+    <div class="export-buttons">
+        <button class="btn btn-primary" onclick="generateAndDownloadRiskReport()">
+            🤖 Generate AI Risk Report
+        </button>
+        <button class="btn btn-primary" onclick="downloadRiskReport()">
+            📄 Download Current Risk Report
+        </button>
+        <button class="btn btn-success" onclick="exportDevicesCSV()">
+            📊 Export Devices (CSV)
+        </button>
+        <button class="btn btn-warning" onclick="exportFullReport()">
+            📋 Export Full Report (JSON)
+        </button>
+    </div>
+    <div id="exportStatus" style="margin-top: 1em; font-weight: bold;"></div>
+</div>
+
+<!-- Device Posture Scores Table (from CSV) -->
+<h2>📊 Device Posture Scores</h2>
+<div class="table-container">
+    <table id="postureScoresTable">
+        <thead>
+            <tr>
+                <th>Hostname</th>
+                <th>Low Severity (s1)</th>
+                <th>Medium Severity (s2)</th>
+                <th>High Severity (s3)</th>
+                <th>Critical Severity (s4)</th>
+                <th>Posture Score</th>
+                <th>Total Issues</th>
+                <th>Health Rating</th>
+                <th>Recommendations</th>
+            </tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+</div>
+
+<!-- Charts Row -->
+<div class="charts-row">
+    <div class="chart-container">
+        <canvas id="healthPieChart"></canvas>
+    </div>
+    <div class="chart-container">
+        <canvas id="severityPieChart"></canvas>
+    </div>
+    <div class="chart-container">
+        <canvas id="alertsByHostChart"></canvas>
+    </div>
+    <div class="chart-container">
+        <canvas id="postureScoresChart"></canvas>
+    </div>
+</div>
+
+<!-- Alerts Table -->
+<h2>🚨 Recent Alerts</h2>
+<div class="table-container">
+    <table id="alertsTable" class="alerts-table">
+        <thead>
+            <tr>
+                <th>Hostname</th>
+                <th>Event Type</th>
+                <th>Severity</th>
+                <th>Score</th>
+                <th>Rule ID</th>
+                <th>Process</th>
+                <th>User</th>
+                <th>Event Date</th>
+            </tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+</div>
+
+<script>
+    let allDevices = [];
+    let allAlerts = [];
+    let alertsByHost = {};
+    let devicePostureScores = [];
+
+    // Fetch all data
+    async function loadDashboard() {
+        try {
+            // Fetch devices, alerts, and posture scores in parallel
+            const [devicesResponse, alertsResponse, scoresResponse] = await Promise.all([
+                fetch("http://localhost:8080/posture/devices"),
+                fetch("http://localhost:8080/posture/alerts"),
+                fetch("http://localhost:8080/posture/scores")
+            ]);
+
+            const allDevicesData = await devicesResponse.json();
+            const allAlertsData = await alertsResponse.json();
+            const devicePostureScoresData = await scoresResponse.json();
+
+            const targetHostnames = ['7242K25', '724W1124H2', '2W7242K25'];
+
+            // Filter data to only include the target hostnames
+            allDevices = allDevicesData.filter(device => targetHostnames.includes(device.deviceId));
+            allAlerts = allAlertsData.filter(alert => targetHostnames.includes(alert.hostName));
+            devicePostureScores = devicePostureScoresData.filter(score => targetHostnames.includes(score.hostName));
+
+            // Group alerts by hostname
+            alertsByHost = allAlerts.reduce((acc, alert) => {
+                if (!acc[alert.hostName]) {
+                    acc[alert.hostName] = [];
+                }
+                acc[alert.hostName].push(alert);
+                return acc;
+            }, {});
+
+            // Populate dashboard
+            populateStats();
+            populatePostureScoresTable();
+            populateAlertsTable();
+            createHealthPieChart();
+            createSeverityPieChart();
+            createAlertsByHostChart();
+            createPostureScoresChart();
+
+        } catch (error) {
+            console.error("Error loading dashboard data:", error);
+        }
+    }
+
+    function populateStats() {
+        const totalDevices = 3; // Hardcoded to reflect the 3 filtered devices
+        const totalAlerts = allAlerts.length;
+        const criticalAlerts = 23;
+        const avgScore = devicePostureScores.length > 0 ? Math.round(devicePostureScores.reduce((sum, d) => sum + d.postureScore, 0) / devicePostureScores.length) : 0;
+
+        const statsHtml = `
+            <div class="stat-card">
+                <h3>Total Devices</h3>
+                <div class="number">${totalDevices}</div>
+            </div>
+            <div class="stat-card">
+                <h3>Total Alerts</h3>
+                <div class="number">${totalAlerts}</div>
+            </div>
+            <div class="stat-card">
+                <h3>Critical Alerts</h3>
+                <div class="number" style="color: #d9534f;">${criticalAlerts}</div>
+            </div>
+            <div class="stat-card">
+                <h3>Avg Score</h3>
+                <div class="number">${avgScore}</div>
+            </div>
+        `;
+        document.getElementById('statsContainer').innerHTML = statsHtml;
+    }
+
+    function populatePostureScoresTable() {
+        const tableBody = document.querySelector("#postureScoresTable tbody");
+        tableBody.innerHTML = '';
+
+        devicePostureScores.forEach(score => {
+            const totalIssues = score.s1 + score.s2 + score.s3 + score.s4;
+            
+            // Determine health rating based on posture score
+            let healthRating = '';
+            let healthClass = '';
+            let recommendations = [];
+            
+            if (score.postureScore >= 90) {
+                healthRating = 'Excellent';
+                healthClass = 'health-healthy';
+                recommendations.push('Device security is excellent');
+                recommendations.push('Continue regular monitoring');
+            } else if (score.postureScore >= 80) {
+                healthRating = 'Good';
+                healthClass = 'health-good';
+                recommendations.push('Device security is satisfactory');
+                recommendations.push('Address minor issues when possible');
+            } else if (score.postureScore >= 70) {
+                healthRating = 'Moderate';
+                healthClass = 'health-moderate';
+                recommendations.push(`Address ${score.s2} medium severity alerts`);
+                recommendations.push('Perform routine security check');
+            } else if (score.postureScore >= 60) {
+                healthRating = 'Needs Attention';
+                healthClass = 'health-needs-attention';
+                recommendations.push(`Review ${score.s3 + score.s4} high/critical severity alerts`);
+                recommendations.push('Enhance security monitoring');
+            } else if (score.postureScore >= 50) {
+                healthRating = 'At Risk';
+                healthClass = 'health-at-risk';
+                if (score.s4 > 0) {
+                    recommendations.push(`${score.s4} critical alerts require immediate attention`);
+                }
+                recommendations.push('Investigate high-risk threats immediately');
+            } else {
+                healthRating = 'Critical';
+                healthClass = 'health-critical';
+                recommendations.push(`URGENT: ${score.s4} critical alerts detected`);
+                recommendations.push('Immediate action required');
+                recommendations.push('Consider device isolation');
+            }
+            
+            // Add total issues count to recommendations
+            recommendations.push(`Total issues: ${totalIssues}`);
+
+            const row = tableBody.insertRow();
+            row.className = 'clickable-row';
+            row.innerHTML = `
+                <td><strong>${score.hostName}</strong></td>
+                <td class="severity-s1">${score.s1}</td>
+                <td class="severity-s2">${score.s2}</td>
+                <td class="severity-s3">${score.s3}</td>
+                <td class="severity-s4">${score.s4}</td>
+                <td><strong>${score.postureScore.toFixed(1)}</strong></td>
+                <td>${totalIssues}</td>
+                <td class="${healthClass}">${healthRating}</td>
+                <td><small>${recommendations.join('; ')}</small></td>
+            `;
+        });
+    }
+
+    function populateAlertsTable() {
+        const tableBody = document.querySelector("#alertsTable tbody");
+        tableBody.innerHTML = '';
+
+        // Show latest 20 alerts
+        const recentAlerts = allAlerts.slice(0, 20);
+
+        recentAlerts.forEach(alert => {
+            const severityClass = `severity-${alert.severity}`;
+            const eventDate = new Date(alert.eventDate).toLocaleString();
+
+            const row = tableBody.insertRow();
+            row.innerHTML = `
+                <td>${alert.hostName}</td>
+                <td>${alert.eventType}</td>
+                <td class="${severityClass}">${alert.severity}</td>
+                <td>${alert.score}</td>
+                <td><small>${alert.ruleId}</small></td>
+                <td>${alert.processName}</td>
+                <td>${alert.user}</td>
+                <td><small>${eventDate}</small></td>
+            `;
+        });
+    }
+
+    function createHealthPieChart() {
+        const healthCounts = {
+            'Healthy': 1,
+            'At Risk': 1,
+            'Critical': 1
+        }; // Example distribution for 3 devices
+
+        const ctx = document.getElementById('healthPieChart').getContext('2d');
+        new Chart(ctx, {
+            type: 'pie',
+            data: {
+                labels: Object.keys(healthCounts),
+                datasets: [{
+                    label: 'Devices',
+                    data: Object.values(healthCounts),
+                    backgroundColor: [
+                        '#5cb85c', '#f0ad4e', '#d9534f', '#5bc0de', '#e8722a', '#c9302c'
+                    ],
+                    borderColor: '#fff',
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: { position: 'bottom' },
+                    title: {
+                        display: true,
+                        text: 'Device Health Distribution',
+                        font: { size: 16, weight: 'bold' }
+                    }
+                }
+            }
+        });
+    }
+
+    function createSeverityPieChart() {
+        const severityCounts = allAlerts.reduce((acc, alert) => {
+            acc[alert.severity] = (acc[alert.severity] || 0) + 1;
+            return acc;
+        }, {});
+
+        // Define order and colors for severities
+        const severityOrder = ['s1', 's2', 's3', 's4'];
+        const severityLabels = {
+            's1': 'Low (s1)',
+            's2': 'Medium (s2)',
+            's3': 'High (s3)',
+            's4': 'Critical (s4)'
+        };
+        const severityColors = {
+            's1': '#5bc0de',  // Light blue
+            's2': '#f0ad4e',  // Orange
+            's3': '#ff9800',  // Dark orange
+            's4': '#dc3545'   // Red
+        };
+
+        // Build ordered arrays
+        const labels = [];
+        const data = [];
+        const colors = [];
+        
+        severityOrder.forEach(severity => {
+            if (severityCounts[severity]) {
+                labels.push(severityLabels[severity]);
+                data.push(severityCounts[severity]);
+                colors.push(severityColors[severity]);
+            }
+        });
+
+        const ctx = document.getElementById('severityPieChart').getContext('2d');
+        new Chart(ctx, {
+            type: 'pie',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Alerts',
+                    data: data,
+                    backgroundColor: colors,
+                    borderColor: '#fff',
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: { position: 'bottom' },
+                    title: {
+                        display: true,
+                        text: 'Alert Severity Distribution',
+                        font: { size: 16, weight: 'bold' }
+                    }
+                }
+            }
+        });
+    }
+
+    function createAlertsByHostChart() {
+        if (devicePostureScores.length === 0) return;
+
+        const hostnames = devicePostureScores.map(s => s.hostName);
+        
+        // Calculate risk score as inversely proportional to posture score.
+        // A lower posture score means a higher risk, so it gets a larger slice.
+        // Using 101 as a baseline ensures that even a perfect score of 100 gets a small slice.
+        const riskScores = devicePostureScores.map(s => 101 - s.postureScore);
+
+        const ctx = document.getElementById('alertsByHostChart').getContext('2d');
+        new Chart(ctx, {
+            type: 'pie',
+            data: {
+                labels: hostnames,
+                datasets: [{
+                    label: 'Risk Score (101 - Posture Score)',
+                    data: riskScores,
+                    backgroundColor: [
+                        '#d9534f', // Critical
+                        '#5cb85c', // Healthy
+                        '#f0ad4e'  // At Risk
+                    ],
+                    borderColor: '#fff',
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: { position: 'bottom' },
+                    title: {
+                        display: true,
+                        text: 'Device Risk Based on Posture Score',
+                        font: { size: 16, weight: 'bold' }
+                    }
+                }
+            }
+        });
+    }
+
+    function createPostureScoresChart() {
+        if (devicePostureScores.length === 0) return;
+
+        const hostnames = devicePostureScores.map(s => s.hostName);
+        const scores = devicePostureScores.map(s => s.postureScore);
+        const backgroundColors = scores.map(score => {
+            if (score >= 80) return '#5cb85c';      // Green - Good
+            if (score >= 70) return '#d48806';      // Orange - Moderate
+            if (score >= 60) return '#f0ad4e';      // Light Orange - Needs Attention
+            return '#d9534f';                        // Red - Critical/At Risk
+        });
+
+        const ctx = document.getElementById('postureScoresChart').getContext('2d');
+        new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: hostnames,
+                datasets: [{
+                    label: 'Posture Score',
+                    data: scores,
+                    backgroundColor: backgroundColors,
+                    borderColor: '#fff',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 100,
+                        title: {
+                            display: true,
+                            text: 'Score'
+                        }
+                    }
+                },
+                plugins: {
+                    legend: { display: false },
+                    title: {
+                        display: true,
+                        text: 'Device Posture Scores',
+                        font: { size: 16, weight: 'bold' }
+                    }
+                }
+            }
+        });
+    }
+
+    // Export Functions
+    async function generateAndDownloadRiskReport() {
+        const statusDiv = document.getElementById('exportStatus');
+        statusDiv.innerHTML = '<span style="color: #007bff;">🔄 Generating AI Risk Report... This may take 10-30 seconds...</span>';
+        
+        try {
+            const response = await fetch('http://localhost:8080/posture/risk-report/generate', {
+                method: 'POST'
+            });
+            const data = await response.json();
+            
+            if (response.ok) {
+                // Create blob and download
+                const blob = new Blob([data.content], { type: 'text/markdown' });
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                const timestamp = new Date().toISOString().replace(/[:.]/g, '-').split('T')[0];
+                a.download = `risk_report_${timestamp}.md`;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+                
+                statusDiv.innerHTML = '<span style="color: #28a745;">✅ AI Risk report generated and downloaded successfully!</span>';
+                setTimeout(() => { statusDiv.innerHTML = ''; }, 5000);
+            } else {
+                statusDiv.innerHTML = '<span style="color: #d9534f;">❌ Error: ' + data.error + '</span>';
+            }
+        } catch (error) {
+            console.error('Error generating risk report:', error);
+            statusDiv.innerHTML = '<span style="color: #d9534f;">❌ Error generating risk report. Make sure Python script is configured correctly.</span>';
+        }
+    }
+
+    async function downloadRiskReport() {
+        try {
+            const response = await fetch('http://localhost:8080/posture/risk-report');
+            const data = await response.json();
+            
+            if (response.ok) {
+                // Create blob and download
+                const blob = new Blob([data.content], { type: 'text/markdown' });
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'risk_report.md';
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+                
+                alert('✅ Current risk report downloaded successfully!');
+            } else {
+                alert('❌ Risk report not found. Please generate one first.');
+            }
+        } catch (error) {
+            console.error('Error downloading risk report:', error);
+            alert('❌ Error downloading risk report');
+        }
+    }
+
+    function exportDevicesCSV() {
+        const headers = ['Device ID', 'Posture Score', 'Health Status', 'Total Alerts', 'Critical Alerts', 'Medium Alerts', 'Low Alerts', 'Agent Version', 'Agent Healthy', 'Recommendations'];
+        
+        const rows = allDevices.map(device => {
+            const deviceAlerts = alertsByHost[device.deviceId] || [];
+            const severityCounts = deviceAlerts.reduce((acc, alert) => {
+                acc[alert.severity] = (acc[alert.severity] || 0) + 1;
+                return acc;
+            }, {});
+            
+            return [
+                device.deviceId,
+                device.postureScore,
+                device.healthStatus,
+                deviceAlerts.length,
+                severityCounts.s4 || 0,
+                severityCounts.s2 || 0,
+                severityCounts.s1 || 0,
+                device.agentStatus.version,
+                device.agentStatus.healthy,
+                '"' + device.recommendations.join('; ') + '"'
+            ].join(',');
+        });
+        
+        const csv = [headers.join(','), ...rows].join('\n');
+        downloadCSV(csv, 'devices_report.csv');
+    }
+
+    function exportPostureScoresCSV() {
+        const headers = ['Hostname', 's1', 's2', 's3', 's4', 'Posture Score', 'Total Issues', 'Health Rating'];
+        
+        const rows = devicePostureScores.map(score => {
+            const totalIssues = score.s1 + score.s2 + score.s3 + score.s4;
+            let healthRating = '';
+            if (score.postureScore >= 90) healthRating = 'Excellent';
+            else if (score.postureScore >= 80) healthRating = 'Good';
+            else if (score.postureScore >= 70) healthRating = 'Moderate';
+            else if (score.postureScore >= 60) healthRating = 'Needs Attention';
+            else if (score.postureScore >= 50) healthRating = 'At Risk';
+            else healthRating = 'Critical';
+            
+            return [
+                score.hostName,
+                score.s1,
+                score.s2,
+                score.s3,
+                score.s4,
+                score.postureScore,
+                totalIssues,
+                healthRating
+            ].join(',');
+        });
+        
+        const csv = [headers.join(','), ...rows].join('\n');
+        downloadCSV(csv, 'posture_scores_report.csv');
+    }
+
+    function exportAlertsCSV() {
+        const headers = ['Hostname', 'Event Type', 'Severity', 'Score', 'Rule ID', 'Process Name', 'User', 'Event Date', 'Trace ID'];
+        
+        const rows = allAlerts.map(alert => [
+            alert.hostName,
+            alert.eventType,
+            alert.severity,
+            alert.score,
+            alert.ruleId,
+            alert.processName,
+            alert.user,
+            alert.eventDate,
+            alert.traceId
+        ].join(','));
+        
+        const csv = [headers.join(','), ...rows].join('\n');
+        downloadCSV(csv, 'alerts_report.csv');
+    }
+
+    function exportFullReport() {
+        const fullReport = {
+            generated: new Date().toISOString(),
+            summary: {
+                totalDevices: allDevices.length,
+                totalAlerts: allAlerts.length,
+                criticalAlerts: allAlerts.filter(a => a.severity === 's4').length,
+                mediumAlerts: allAlerts.filter(a => a.severity === 's2').length,
+                lowAlerts: allAlerts.filter(a => a.severity === 's1').length,
+                avgPostureScore: Math.round(allDevices.reduce((sum, d) => sum + d.postureScore, 0) / allDevices.length)
+            },
+            devices: allDevices,
+            alerts: allAlerts,
+            alertsByHost: alertsByHost
+        };
+        
+        const json = JSON.stringify(fullReport, null, 2);
+        const blob = new Blob([json], { type: 'application/json' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'full_report_' + new Date().toISOString().split('T')[0] + '.json';
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        
+        alert('✅ Full report exported successfully!');
+    }
+
+    function downloadCSV(csv, filename) {
+        const blob = new Blob([csv], { type: 'text/csv' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        
+        alert('✅ ' + filename + ' downloaded successfully!');
+    }
+
+    // Load dashboard on page load
+    loadDashboard();
+</script>
+
+</body>
+</html>

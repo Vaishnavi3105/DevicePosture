@@ -1,0 +1,9 @@
+com/example/deviceposture/model/DevicePosture.class
+com/example/deviceposture/model/TelemetryStatus.class
+com/example/deviceposture/model/AlertingData.class
+com/example/deviceposture/model/DevicePostureScore.class
+com/example/deviceposture/model/AgentStatus.class
+com/example/deviceposture/DevicePostureApplication.class
+com/example/deviceposture/service/PostureService.class
+com/example/deviceposture/controller/PostureController.class
+com/example/deviceposture/model/AlertEvent.class

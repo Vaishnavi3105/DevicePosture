@@ -1,0 +1,9 @@
+/Users/vaishnavi.lahoti/Desktop/DevicePosture/src/main/java/com/example/deviceposture/model/DevicePosture.java
+/Users/vaishnavi.lahoti/Desktop/DevicePosture/src/main/java/com/example/deviceposture/model/AlertingData.java
+/Users/vaishnavi.lahoti/Desktop/DevicePosture/src/main/java/com/example/deviceposture/model/DevicePostureScore.java
+/Users/vaishnavi.lahoti/Desktop/DevicePosture/src/main/java/com/example/DevicePostureApplication.java
+/Users/vaishnavi.lahoti/Desktop/DevicePosture/src/main/java/com/example/deviceposture/service/PostureService.java
+/Users/vaishnavi.lahoti/Desktop/DevicePosture/src/main/java/com/example/deviceposture/controller/PostureController.java
+/Users/vaishnavi.lahoti/Desktop/DevicePosture/src/main/java/com/example/deviceposture/model/AlertEvent.java
+/Users/vaishnavi.lahoti/Desktop/DevicePosture/src/main/java/com/example/deviceposture/model/AgentStatus.java
+/Users/vaishnavi.lahoti/Desktop/DevicePosture/src/main/java/com/example/deviceposture/model/TelemetryStatus.java
